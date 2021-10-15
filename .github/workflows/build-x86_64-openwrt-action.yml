@@ -11,10 +11,10 @@ name: Build x86_64 test
 on:
   repository_dispatch:
   workflow_dispatch:
-#  schedule:
-#    - cron: 0 19 * * SAT
-#  watch:
-#    types: started
+  schedule:
+    - cron: 0 19 * * SAT
+  watch:
+    types: started
 
 env:
   REPO_URL: https://github.com/coolsnowwolf/lede
@@ -22,11 +22,11 @@ env:
   CONFIG_FILE: config/x86/x86_64-openwrt-target.config
   DIY_SH: scripts/project-openwrt.sh
   #WEBROOT: ~/openwrt
-  RUNNER: project-x86_64
+  #RUNNER: project-x86_64
 
 jobs:
   Toolchain:
-    runs-on: project-x86_64
+    runs-on: ubuntu-20.04
 
     outputs:
       TOOLCHAIN_STATUS: ${{ steps.toolchain.outputs.TOOLCHAIN_STATUS }}
@@ -54,7 +54,7 @@ jobs:
           sudo umount /dev/loop*p1 || true
           sudo losetup -D || true
           rm -rf openwrt.img
-          fallocate -l 30G openwrt.img
+          fallocate -l 100G openwrt.img
           echo 'type=83' | sfdisk openwrt.img
           export LOOP="$(sudo losetup -f -P --show openwrt.img)"
           echo "LOOP=$LOOP" >> $GITHUB_ENV
@@ -102,6 +102,9 @@ jobs:
         run: |
           cd $OPENWRTROOT
           rm -rf dl
+          mkdir ~/cache
+          mkdir ~/cache/lean
+          mkdir ~/cache/lean/dl
           cp -r ~/cache/lean/dl .
           echo "CONFIG_ALL=y" >> .config
           make defconfig
@@ -141,7 +144,7 @@ jobs:
   Firmware:
     if: needs.Toolchain.outputs.TOOLCHAIN_STATUS == 'success'
     needs: [Toolchain]
-    runs-on: project-x86_64
+    runs-on: ubuntu-20.04
 
     outputs:
       PLATFORM: ${{ steps.compile.outputs.PLATFORM }}
@@ -226,7 +229,7 @@ jobs:
   Extra-Packages:
     if: needs.Firmware.outputs.GENERATE_STATUS == 'success'
     needs: [Firmware]
-    runs-on: project-x86_64
+    runs-on: ubuntu-20.04
 
     outputs:
       COMPILE_STATUS: ${{ steps.compile.outputs.COMPILE_STATUS }}
