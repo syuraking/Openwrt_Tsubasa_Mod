@@ -27,7 +27,6 @@ env:
 jobs:
   Toolchain:
     runs-on: project-x86_64
-    #runs-on: ubuntu-20.04
 
     outputs:
       TOOLCHAIN_STATUS: ${{ steps.toolchain.outputs.TOOLCHAIN_STATUS }}
@@ -142,8 +141,7 @@ jobs:
   Firmware:
     if: needs.Toolchain.outputs.TOOLCHAIN_STATUS == 'success'
     needs: [Toolchain]
-    #runs-on: project-x86_64
-    runs-on: ubuntu-20.04
+    runs-on: project-x86_64
 
     outputs:
       PLATFORM: ${{ steps.compile.outputs.PLATFORM }}
@@ -229,7 +227,6 @@ jobs:
     if: needs.Firmware.outputs.GENERATE_STATUS == 'success'
     needs: [Firmware]
     runs-on: project-x86_64
-    #runs-on: ubuntu-20.04
 
     outputs:
       COMPILE_STATUS: ${{ steps.compile.outputs.COMPILE_STATUS }}
