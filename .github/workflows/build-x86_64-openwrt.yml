@@ -19,8 +19,8 @@ on:
 env:
   REPO_URL: https://github.com/coolsnowwolf/lede
   REPO_BRANCH: master
-  CONFIG_FILE: config-test/x86/x86_64-openwrt-target.config
-  DIY_SH: scripts-test/project-openwrt.sh
+  CONFIG_FILE: config/x86/x86_64-openwrt-target.config
+  DIY_SH: scripts/project-openwrt.sh
   WEBROOT: ~/openwrt
   RUNNER: project-x86_64
 
