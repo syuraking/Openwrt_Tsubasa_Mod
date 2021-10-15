@@ -19,8 +19,8 @@ on:
 env:
   REPO_URL: https://github.com/coolsnowwolf/lede
   REPO_BRANCH: master
-  CONFIG_FILE: config-test/x86/x86_64-openwrt-target.config
-  DIY_SH: scripts-test/project-openwrt.sh
+  CONFIG_FILE: config/x86/x86_64-openwrt-target.config
+  DIY_SH: scripts/project-openwrt.sh
   #WEBROOT: ~/openwrt
   RUNNER: project-x86_64
 
@@ -115,8 +115,8 @@ jobs:
         run: |
           rm -f $OPENWRTROOT/.config*
           cp $CONFIG_FILE $OPENWRTROOT/.config
-          cat config-test/firmware-extra.config >> $OPENWRTROOT/.config
-          cat config-test/extra-wireless-support.config >> $OPENWRTROOT/.config
+          cat config/firmware-extra.config >> $OPENWRTROOT/.config
+          cat config/extra-wireless-support.config >> $OPENWRTROOT/.config
           cd $OPENWRTROOT
           make defconfig
           echo -e "$(nproc) threads compile"
@@ -198,17 +198,17 @@ jobs:
         if: steps.compile.outputs.COMPILE_STATUS == 'success'
         id: generate
         run: |
-          cd data-test/opkg
+          cd data/opkg
           sed -i "s/subtarget/$SUBTARGET/g" distfeeds.conf
           sed -i "s/target\//$TARGET\//g" distfeeds.conf
           sed -i "s/platform/$PLATFORM/g" distfeeds.conf
           cd $OPENWRTROOT
           mkdir -p files/etc/opkg
-          cp ../data-test/opkg/distfeeds.conf files/etc/opkg/distfeeds.conf
+          cp ../data/opkg/distfeeds.conf files/etc/opkg/distfeeds.conf
           mkdir -p files/www/test
           cp -r bin/targets files/www/test
           mkdir -p files/etc/uci-defaults/
-          cp ../scripts-test/init-settings.sh files/etc/uci-defaults/99-init-settings
+          cp ../scripts/init-settings.sh files/etc/uci-defaults/99-init-settings
           make package/install || make package/install -j1 V=s
           make target/install || make target/install -j1 V=s
           make checksum
@@ -264,7 +264,7 @@ jobs:
           cd $OPENWRTROOT
           rm -f .config*
           cp ../$CONFIG_FILE ./.config
-          cat ../config-test/packages-extra.config >> $OPENWRTROOT/.config
+          cat ../config/packages-extra.config >> $OPENWRTROOT/.config
           make defconfig
           make diffconfig
           make target/clean
