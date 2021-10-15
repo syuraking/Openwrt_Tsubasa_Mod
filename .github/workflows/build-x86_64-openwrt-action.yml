@@ -8,11 +8,7 @@
 # Description: Build OpenWrt using GitHub Actions
 #
 
-<<<<<<< HEAD
-name: Build OpenWrt
-=======
-name: Build x86_64 action
->>>>>>> c5468e841c5cc66a89b95d29334aa756d4248976
+name: Build x86_64 Actions no space
 
 on:
   repository_dispatch:
