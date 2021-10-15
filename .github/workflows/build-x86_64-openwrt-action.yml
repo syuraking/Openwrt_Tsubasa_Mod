@@ -102,21 +102,21 @@ jobs:
         find dl -size -1024c -exec rm -f {} \;
 
     - name: Compile Tools
-        id: tools
-        run: |
-          cd openwrt
-          rm -f .config
-          cp $CONFIG_FILE .config
-          cat config/firmware-extra.config >> .config
-          cat config/base-wireless-support.config >> .config
-          cd openwrt
-          make defconfig
-          echo -e "$(nproc) threads compile"
-          make tools/install -j$(nproc) BUILD_LOG=1 || make tools/install -j1 V=s
+      id: tools
+      run: |
+        cd openwrt
+        rm -f .config
+        cp $CONFIG_FILE .config
+        cat config/firmware-extra.config >> .config
+        cat config/base-wireless-support.config >> .config
+        cd openwrt
+        make defconfig
+        echo -e "$(nproc) threads compile"
+        make tools/install -j$(nproc) BUILD_LOG=1 || make tools/install -j1 V=s
 
     - name: Compile Toolchain
-        id: toolchain
-        run: |
+      id: toolchain
+      run: |
           cd openwrt
           echo -e "$(nproc) threads compile"
           make toolchain/compile -j$(nproc) BUILD_LOG=1 || make toolchain/compile -j1 V=s
