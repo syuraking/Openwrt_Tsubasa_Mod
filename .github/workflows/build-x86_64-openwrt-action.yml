@@ -59,13 +59,6 @@ jobs:
         git clone $REPO_URL -b $REPO_BRANCH openwrt
         ln -sf /workdir/openwrt $GITHUB_WORKSPACE/openwrt
 
-    - name: Load custom feeds
-      run: |
-        [ -e $FEEDS_CONF ] && mv $FEEDS_CONF openwrt/feeds.conf.default
-        chmod +x $DIY_P1_SH
-        cd openwrt
-        $GITHUB_WORKSPACE/$DIY_P1_SH
-
     - name: Update feeds
       run: 
        cd openwrt
@@ -126,7 +119,17 @@ jobs:
       if: needs.Toolchain.outputs.TOOLCHAIN_STATUS == 'success'
       id: compile
       run: |
+        cd data/opkg
+        sed -i "s/subtarget/$SUBTARGET/g" distfeeds.conf
+        sed -i "s/target\//$TARGET\//g" distfeeds.conf
+        sed -i "s/platform/$PLATFORM/g" distfeeds.conf
+        mkdir -p files/etc/opkg
+        cp ../data/opkg/distfeeds.conf files/etc/opkg/distfeeds.conf
         cd openwrt
+        mkdir -p files/www/openwrt
+        cp -r bin/targets files/www/openwrt
+        mkdir -p files/etc/uci-defaults/
+        cp ../scripts/init-settings.sh files/etc/uci-defaults/99-init-settings
         echo -e "$(nproc) thread compile"
         make -j$(nproc) || make -j1 || make -j1 V=s
         echo "::set-output name=status::success"
