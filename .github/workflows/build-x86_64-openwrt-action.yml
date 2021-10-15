@@ -1,333 +1,215 @@
-#=================================================
+#
+# Copyright (c) 2019-2020 P3TERX <https://p3terx.com>
+#
+# This is free software, licensed under the MIT License.
+# See /LICENSE for more information.
+#
 # https://github.com/P3TERX/Actions-OpenWrt
 # Description: Build OpenWrt using GitHub Actions
-# Lisence: MIT
-# Author: P3TERX
-# Blog: https://p3terx.com
-#=================================================
+#
 
-name: Build x86_64 test
+name: Build OpenWrt
 
 on:
   repository_dispatch:
   workflow_dispatch:
-  schedule:
-    - cron: 0 19 * * SAT
-  watch:
-    types: started
+    inputs:
+      ssh:
+        description: 'SSH connection to Actions'
+        required: false
+        default: 'false'
 
 env:
   REPO_URL: https://github.com/coolsnowwolf/lede
   REPO_BRANCH: master
   CONFIG_FILE: config/x86/x86_64-openwrt-target.config
   DIY_SH: scripts/project-openwrt.sh
-  #WEBROOT: ~/openwrt
-  #RUNNER: project-x86_64
+  UPLOAD_BIN_DIR: false
+  UPLOAD_FIRMWARE: true
+  UPLOAD_COWTRANSFER: false
+  UPLOAD_WETRANSFER: false
+  UPLOAD_RELEASE: false
+  TZ: Asia/Shanghai
 
 jobs:
-  Toolchain:
+  build:
     runs-on: ubuntu-20.04
 
-    outputs:
-      TOOLCHAIN_STATUS: ${{ steps.toolchain.outputs.TOOLCHAIN_STATUS }}
-
     steps:
-      - name: Umount Missing Loop Devices
-        id: umount
-        run: |
-          sudo umount /dev/loop*p1 || true
-          sudo losetup -D || true
-          lsblk
+    - name: Checkout
+      uses: actions/checkout@main
 
-      - name: Checkout
-        uses: actions/checkout@main
+    - name: Initialization environment
+      env:
+        DEBIAN_FRONTEND: noninteractive
+      run: |
+        sudo rm -rf /etc/apt/sources.list.d/* /usr/share/dotnet /usr/local/lib/android /opt/ghc
+        sudo -E apt-get -qq update
+        sudo -E apt-get -qq install $(curl -fsSL git.io/depends-ubuntu-2004)
+        sudo -E apt-get -qq autoremove --purge
+        sudo -E apt-get -qq clean
+        sudo timedatectl set-timezone "$TZ"
+        sudo mkdir -p /workdir
+        sudo chown $USER:$GROUPS /workdir
 
-      - name: Initialization Environment
-        id: init
-        env:
-          DEBIAN_FRONTEND: noninteractive
-        run: |
-          sudo -E apt-get -qq update
-          sudo -E apt-get -qq install $(curl -fsSL git.io/depends-ubuntu-1804) rdate
-          sudo -E apt-get -qq autoremove --purge
-          sudo -E apt-get -qq clean
-          sudo umount /dev/loop*p1 || true
-          sudo losetup -D || true
-          rm -rf openwrt.img
-          fallocate -l 100G openwrt.img
-          echo 'type=83' | sfdisk openwrt.img
-          export LOOP="$(sudo losetup -f -P --show openwrt.img)"
-          echo "LOOP=$LOOP" >> $GITHUB_ENV
-          echo "::set-output name=LOOP::$(echo $LOOP)"
-          sudo mkfs.ext4 ${LOOP}p1
-          mkdir -p openwrt
-          sudo mount ${LOOP}p1 openwrt
-          lsblk
-          sudo chown -R ubuntu:ubuntu openwrt
-          cd openwrt
-          echo "OPENWRTROOT=$PWD" >> $GITHUB_ENV
+    - name: Clone source code
+      working-directory: /workdir
+      run: |
+        df -hT $PWD
+        git clone $REPO_URL -b $REPO_BRANCH openwrt
+        ln -sf /workdir/openwrt $GITHUB_WORKSPACE/openwrt
 
-      - name: Clone Source Code
-        id: clone
-        run: |
-          df -hT $PWD
-          git clone --depth 1 $REPO_URL -b $REPO_BRANCH
-          mv lede/* openwrt
-          mv lede/.git* openwrt
+    - name: Load custom feeds
+      run: |
+        [ -e $FEEDS_CONF ] && mv $FEEDS_CONF openwrt/feeds.conf.default
+        chmod +x $DIY_P1_SH
+        cd openwrt
+        $GITHUB_WORKSPACE/$DIY_P1_SH
 
-      - name: Update Feeds
-        id: update
-        run: |
-          cd $OPENWRTROOT
-          mkdir customfeeds
-          git clone --depth=1 https://github.com/coolsnowwolf/packages customfeeds/packages
-          git clone --depth=1 https://github.com/coolsnowwolf/luci customfeeds/luci
-          chmod +x ../scripts/*.sh
-          ../scripts/hook-feeds.sh
+    - name: Update feeds
+      run: 
+      cd openwrt
+      mkdir customfeeds
+      git clone --depth=1 https://github.com/coolsnowwolf/packages customfeeds/packages
+      git clone --depth=1 https://github.com/coolsnowwolf/luci customfeeds/luci
+      chmod +x ../scripts/*.sh
+      ../scripts/hook-feeds.sh
 
-      - name: Install Feeds
-        id: install
-        run: |
-          cd $OPENWRTROOT
-          ./scripts/feeds install -a
+    - name: Install feeds
+      run: cd openwrt && ./scripts/feeds install -a
 
-      - name: Load Custom Configuration
-        run: |
-          [ -e files ] && mv files $OPENWRTROOT/files
-          cd $OPENWRTROOT
-          ../$DIY_SH
+    - name: Load custom configuration
+      run: |
+        [ -e files ] && mv files openwrt/files
+        cd openwrt
+        ../$DIY_SH
 
-      - name: Download All Packages
-        id: download
-        run: |
-          cd $OPENWRTROOT
-          rm -rf dl
-          mkdir ~/cache
-          mkdir ~/cache/lean
-          mkdir ~/cache/lean/dl
-          cp -r ~/cache/lean/dl .
-          echo "CONFIG_ALL=y" >> .config
-          make defconfig
-          make download -j16 IGNORE_ERRORS=1
-          find dl -size -1024c -exec ls -l {} \;
-          find dl -size -1024c -exec rm -f {} \;
+    - name: SSH connection to Actions
+      uses: P3TERX/ssh2actions@v1.0.0
+      if: (github.event.inputs.ssh == 'true' && github.event.inputs.ssh  != 'false') || contains(github.event.action, 'ssh')
+      env:
+        TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
 
-      - name: Compile Tools
+    - name: Download package
+      id: package
+      run: |
+        cd openwrt
+        echo "CONFIG_ALL=y" >> .config
+        make defconfig
+        make download -j8
+        find dl -size -1024c -exec ls -l {} \;
+        find dl -size -1024c -exec rm -f {} \;
+
+    - name: Compile Tools
         id: tools
         run: |
-          rm -f $OPENWRTROOT/.config
-          cp $CONFIG_FILE $OPENWRTROOT/.config
-          cat config/firmware-extra.config >> $OPENWRTROOT/.config
-          cat config/base-wireless-support.config >> $OPENWRTROOT/.config
-          cd $OPENWRTROOT
+          cd openwrt
+          rm -f .config
+          cp $CONFIG_FILE .config
+          cat config/firmware-extra.config >> .config
+          cat config/base-wireless-support.config >> .config
+          cd openwrt
           make defconfig
           echo -e "$(nproc) threads compile"
           make tools/install -j$(nproc) BUILD_LOG=1 || make tools/install -j1 V=s
 
-      - name: Compile Toolchain
+    - name: Compile Toolchain
         id: toolchain
         run: |
-          cd $OPENWRTROOT
+          cd openwrt
           echo -e "$(nproc) threads compile"
           make toolchain/compile -j$(nproc) BUILD_LOG=1 || make toolchain/compile -j1 V=s
           echo "::set-output name=TOOLCHAIN_STATUS::success"
 
-      - name: Umount Disk Image
-        id: prepare
-        if: always()
-        run: |
-          sync
-          sudo umount ${LOOP}p1 || true
-          sudo losetup -d $LOOP || true
-          lsblk
+    - name: Compile the firmware
+      if: needs.Toolchain.outputs.TOOLCHAIN_STATUS == 'success'
+      id: compile
+      run: |
+        cd openwrt
+        echo -e "$(nproc) thread compile"
+        make -j$(nproc) || make -j1 || make -j1 V=s
+        echo "::set-output name=status::success"
+        grep '^CONFIG_TARGET.*DEVICE.*=y' .config | sed -r 's/.*DEVICE_(.*)=y/\1/' > DEVICE_NAME
+        [ -s DEVICE_NAME ] && echo "DEVICE_NAME=_$(cat DEVICE_NAME)" >> $GITHUB_ENV
+        echo "FILE_DATE=_$(date +"%Y%m%d%H%M")" >> $GITHUB_ENV
 
-  Firmware:
-    if: needs.Toolchain.outputs.TOOLCHAIN_STATUS == 'success'
-    needs: [Toolchain]
-    runs-on: ubuntu-20.04
+    - name: Check space usage
+      if: (!cancelled())
+      run: df -hT
 
-    outputs:
-      PLATFORM: ${{ steps.compile.outputs.PLATFORM }}
-      TARGET: ${{ steps.compile.outputs.TARGET }}
-      SUBTARGET: ${{ steps.compile.outputs.SUBTARGET }}
-      GENERATE_STATUS: ${{ steps.generate.outputs.GENERATE_STATUS }}
+    - name: Upload bin directory
+      uses: actions/upload-artifact@main
+      if: steps.compile.outputs.status == 'success' && env.UPLOAD_BIN_DIR == 'true'
+      with:
+        name: OpenWrt_bin${{ env.DEVICE_NAME }}${{ env.FILE_DATE }}
+        path: openwrt/bin
 
-    steps:
-      - name: Initialization Environment
-        id: init
-        run: |
-          export LOOP="$(sudo losetup -f -P --show openwrt.img)"
-          echo "LOOP=$LOOP" >> $GITHUB_ENV
-          echo "::set-output name=LOOP::$(echo $LOOP)"
-          mkdir -p openwrt
-          sudo mount ${LOOP}p1 openwrt
-          lsblk
-          sudo chown -R ubuntu:ubuntu openwrt
-          cd openwrt
-          echo "OPENWRTROOT=$PWD" >> $GITHUB_ENV
+    - name: Organize files
+      id: organize
+      if: env.UPLOAD_FIRMWARE == 'true' && !cancelled()
+      run: |
+        cd openwrt/bin/targets/*/*
+        rm -rf packages
+        echo "FIRMWARE=$PWD" >> $GITHUB_ENV
+        echo "::set-output name=status::success"
 
-      - name: Compile Firmware Packages
-        id: compile
-        env:
-          DEBIAN_FRONTEND: noninteractive
-        timeout-minutes: 400
-        run: |
-          cd $OPENWRTROOT
-          echo -e "$(nproc) threads compile"
-          echo 'CONFIG_MMC_SDHCI_ACPI=y' >> target/linux/x86/64/config-5.4
-          make target/compile -j$(nproc) 'IGNORE_ERRORS=n m' BUILD_LOG=1 || make target/compile -j1 V=s IGNORE_ERRORS=1
-          make diffconfig
-          make package/compile -j$(nproc) 'IGNORE_ERRORS=n m' BUILD_LOG=1 || make package/compile -j1 V=s
-          make package/index
-          cd $OPENWRTROOT/bin/packages/*
-          PLATFORM=$(basename `pwd`)
-          echo "PLATFORM=$PLATFORM" >> $GITHUB_ENV
-          echo "::set-output name=PLATFORM::$(echo $PLATFORM)"
-          cd $OPENWRTROOT/bin/targets/*
-          TARGET=$(basename `pwd`)
-          echo "TARGET=$TARGET" >> $GITHUB_ENV
-          echo "::set-output name=TARGET::$(echo $TARGET)"
-          cd *
-          SUBTARGET=$(basename `pwd`)
-          echo "SUBTARGET=$SUBTARGET" >> $GITHUB_ENV
-          echo "::set-output name=SUBTARGET::$(echo $SUBTARGET)"
-          echo "FIRMWARE=$PWD" >> $GITHUB_ENV
-          echo "::set-output name=FIRMWARE::$(echo $PWD)"
-          echo "::set-output name=COMPILE_STATUS::success"
+    - name: Upload firmware directory
+      uses: actions/upload-artifact@main
+      if: steps.organize.outputs.status == 'success' && !cancelled()
+      with:
+        name: OpenWrt_firmware${{ env.DEVICE_NAME }}${{ env.FILE_DATE }}
+        path: ${{ env.FIRMWARE }}
 
-      - name: Generate Firmware
-        if: steps.compile.outputs.COMPILE_STATUS == 'success'
-        id: generate
-        run: |
-          cd data/opkg
-          sed -i "s/subtarget/$SUBTARGET/g" distfeeds.conf
-          sed -i "s/target\//$TARGET\//g" distfeeds.conf
-          sed -i "s/platform/$PLATFORM/g" distfeeds.conf
-          cd $OPENWRTROOT
-          mkdir -p files/etc/opkg
-          cp ../data/opkg/distfeeds.conf files/etc/opkg/distfeeds.conf
-          mkdir -p files/www/test
-          cp -r bin/targets files/www/test
-          mkdir -p files/etc/uci-defaults/
-          cp ../scripts/init-settings.sh files/etc/uci-defaults/99-init-settings
-          make package/install || make package/install -j1 V=s
-          make target/install || make target/install -j1 V=s
-          make checksum
-          mkdir -p $OPENWRTROOT/output/bin/targets/$TARGET
-          cp -r $FIRMWARE $OPENWRTROOT/output/bin/targets/$TARGET
-          echo "::set-output name=GENERATE_STATUS::success"
+    - name: Upload firmware to cowtransfer
+      id: cowtransfer
+      if: steps.organize.outputs.status == 'success' && env.UPLOAD_COWTRANSFER == 'true' && !cancelled()
+      run: |
+        curl -fsSL git.io/file-transfer | sh
+        ./transfer cow --block 2621440 -s -p 64 --no-progress ${FIRMWARE} 2>&1 | tee cowtransfer.log
+        echo "::warning file=cowtransfer.com::$(cat cowtransfer.log | grep https)"
+        echo "::set-output name=url::$(cat cowtransfer.log | grep https | cut -f3 -d" ")"
 
-      - name: Umount Disk Image
-        if: always()
-        id: prepare
-        run: |
-          sync
-          sudo umount ${LOOP}p1 || true
-          sudo losetup -d $LOOP || true
-          lsblk
+    - name: Upload firmware to WeTransfer
+      id: wetransfer
+      if: steps.organize.outputs.status == 'success' && env.UPLOAD_WETRANSFER == 'true' && !cancelled()
+      run: |
+        curl -fsSL git.io/file-transfer | sh
+        ./transfer wet -s -p 16 --no-progress ${FIRMWARE} 2>&1 | tee wetransfer.log
+        echo "::warning file=wetransfer.com::$(cat wetransfer.log | grep https)"
+        echo "::set-output name=url::$(cat wetransfer.log | grep https | cut -f3 -d" ")"
 
-  Extra-Packages:
-    if: needs.Firmware.outputs.GENERATE_STATUS == 'success'
-    needs: [Firmware]
-    runs-on: ubuntu-20.04
+    - name: Generate release tag
+      id: tag
+      if: env.UPLOAD_RELEASE == 'true' && !cancelled()
+      run: |
+        echo "::set-output name=release_tag::$(date +"%Y.%m.%d-%H%M")"
+        touch release.txt
+        [ $UPLOAD_COWTRANSFER = true ] && echo "🔗 [Cowtransfer](${{ steps.cowtransfer.outputs.url }})" >> release.txt
+        [ $UPLOAD_WETRANSFER = true ] && echo "🔗 [WeTransfer](${{ steps.wetransfer.outputs.url }})" >> release.txt
+        echo "::set-output name=status::success"
 
-    outputs:
-      COMPILE_STATUS: ${{ steps.compile.outputs.COMPILE_STATUS }}
+    - name: Upload firmware to release
+      uses: softprops/action-gh-release@v1
+      if: steps.tag.outputs.status == 'success' && !cancelled()
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ steps.tag.outputs.release_tag }}
+        body_path: release.txt
+        files: ${{ env.FIRMWARE }}/*
 
-    steps:
-      - name: Restore Variables
-        id: restore
-        run: |
-          echo "PLATFORM=$(echo '${{needs.Firmware.outputs.PLATFORM}}')" >> $GITHUB_ENV
-          echo "TARGET=$(echo '${{needs.Firmware.outputs.TARGET}}')" >> $GITHUB_ENV
-          echo "SUBTARGET=$(echo '${{needs.Firmware.outputs.SUBTARGET}}')" >> $GITHUB_ENV
+    - name: Delete workflow runs
+      uses: GitRML/delete-workflow-runs@main
+      with:
+        retain_days: 1
+        keep_minimum_runs: 3
 
-      - name: Initialization Environment
-        id: init
-        run: |
-          export LOOP="$(sudo losetup -f -P --show openwrt.img)"
-          echo "LOOP=$LOOP" >> $GITHUB_ENV
-          echo "::set-output name=LOOP::$(echo $LOOP)"
-          mkdir -p openwrt
-          sudo mount ${LOOP}p1 openwrt
-          lsblk
-          sudo chown -R ubuntu:ubuntu openwrt
-          cd openwrt
-          echo "OPENWRTROOT=$PWD" >> $GITHUB_ENV
-
-      - name: Compile Extra Packages
-        id: compile
-        env:
-          DEBIAN_FRONTEND: noninteractive
-        timeout-minutes: 400
-        run: |
-          cd $OPENWRTROOT
-          rm -f .config*
-          cp ../$CONFIG_FILE ./.config
-          cat ../config/packages-extra.config >> $OPENWRTROOT/.config
-          make defconfig
-          make diffconfig
-          make target/clean
-          make package/libs/mbedtls/clean
-          make target/compile -j$(nproc) 'IGNORE_ERRORS=n m' BUILD_LOG=1 || make target/compile -j1 V=s IGNORE_ERRORS=1
-          make package/compile -j$(nproc) BUILD_LOG=1 IGNORE_ERRORS="y m n" || make package/compile -j1 V=s IGNORE_ERRORS="y m n"
-          make package/index
-          mkdir -p $OPENWRTROOT/output/bin/packages
-          cp -r bin/packages/$PLATFORM $OPENWRTROOT/output/bin/packages
-          echo "::set-output name=COMPILE_STATUS::success"
-
-      - name: Compress Bin Folder
-        if: steps.compile.outputs.COMPILE_STATUS == 'success'
-        id: compress
-        run: |
-          cd $OPENWRTROOT/output
-          zip -q -s 500m -r bin-archive.zip bin
-          rm -rf bin
-
-      - name: Upload Bin Archive
-        id: upload
-        uses: actions/upload-artifact@main
-        with:
-          name: Openwrt_Compile
-          path: openwrt/output
-
-      - name: Umount Disk Image
-        if: always()
-        id: prepare
-        run: |
-          sync
-          sudo umount ${LOOP}p1 || true
-          sudo losetup -d $LOOP || true
-          lsblk
-
-#  Upload:
-#    if: needs.Extra-Packages.outputs.COMPILE_STATUS == 'success'
-#    needs: [Extra-Packages, Firmware]
-#    runs-on: ubuntu-18.04
-#
-#    steps:
-#      - name: Restore Variables
-#        id: restore
-#        run: |
-#          echo "PLATFORM=$(echo '${{needs.Firmware.outputs.PLATFORM}}')" >> $GITHUB_ENV
-#          echo "TARGET=$(echo '${{needs.Firmware.outputs.TARGET}}')" >> $GITHUB_ENV
-#          echo "SUBTARGET=$(echo '${{needs.Firmware.outputs.SUBTARGET}}')" >> $GITHUB_ENV
-#
-#      - name: Download Bin Archive
-#        id: download
-#        uses: actions/download-artifact@v2
-#        with:
-#          name: Bin-Archive
-#          path: openwrt
-#
-#      - name: Decompress Bin Folder
-#        id: decompress
-#        run: |
-#          sudo ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
-#          cd openwrt
-#          echo "OPENWRTROOT=$PWD" >> $GITHUB_ENV
-#          zip -q -s 0 bin-archive.zip --out bin.zip
-#          unzip bin.zip
-#          cd bin/targets/$TARGET/$SUBTARGET
-#          echo "FIRMWARE=$PWD" >> $GITHUB_ENV
-
+    - name: Remove old Releases
+      uses: dev-drprasad/delete-older-releases@v0.1.0
+      if: env.UPLOAD_RELEASE == 'true' && !cancelled()
+      with:
+        keep_latest: 3
+        delete_tags: true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
