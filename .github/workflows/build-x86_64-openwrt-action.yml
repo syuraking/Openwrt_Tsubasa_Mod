@@ -62,6 +62,7 @@ jobs:
         ln -sf /workdir/openwrt $GITHUB_WORKSPACE/openwrt
 
     - name: Update feeds
+      working-directory: /workdir
       run: |
        cd openwrt
        mkdir customfeeds
