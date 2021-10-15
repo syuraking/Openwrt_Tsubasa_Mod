@@ -11,10 +11,10 @@ name: Build x86_64 test
 on:
   repository_dispatch:
   workflow_dispatch:
-#  schedule:
-#    - cron: 0 19 * * SAT
-#  watch:
-#    types: started
+  schedule:
+    - cron: 0 19 * * SAT
+  watch:
+    types: started
 
 env:
   REPO_URL: https://github.com/coolsnowwolf/lede
