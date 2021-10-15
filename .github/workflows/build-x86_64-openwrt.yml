@@ -26,7 +26,8 @@ env:
 
 jobs:
   Toolchain:
-    runs-on: project-x86_64
+    #runs-on: project-x86_64
+    runs-on: ubuntu-20.04
 
     outputs:
       TOOLCHAIN_STATUS: ${{ steps.toolchain.outputs.TOOLCHAIN_STATUS }}
