@@ -22,7 +22,7 @@ env:
   CONFIG_FILE: config/x86/x86_64-openwrt-target.config
   DIY_SH: scripts/project-openwrt.sh
   WEBROOT: ~/openwrt
-  RUNNER: project-x86_64
+  #RUNNER: project-x86_64
 
 jobs:
   Toolchain:
