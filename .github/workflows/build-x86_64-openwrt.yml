@@ -172,9 +172,9 @@ jobs:
           cd $OPENWRTROOT
           echo -e "$(nproc) threads compile"
           echo 'CONFIG_MMC_SDHCI_ACPI=y' >> target/linux/x86/64/config-5.4
-          make target/compile -j$(nproc) 'IGNORE_ERRORS=n m' BUILD_LOG=1 || make target/compile -j1 V=s IGNORE_ERRORS=1
+          make target/compile -j1 'IGNORE_ERRORS=n m' BUILD_LOG=1 || make target/compile -j1 V=s IGNORE_ERRORS=1
           make diffconfig
-          make package/compile -j$(nproc) 'IGNORE_ERRORS=n m' BUILD_LOG=1 || make package/compile -j1 V=s
+          make package/compile -j1 'IGNORE_ERRORS=n m' BUILD_LOG=1 || make package/compile -j1 V=s
           make package/index
           cd $OPENWRTROOT/bin/packages/*
           PLATFORM=$(basename `pwd`)
@@ -203,8 +203,8 @@ jobs:
           cd $OPENWRTROOT
           mkdir -p files/etc/opkg
           cp ../data/opkg/distfeeds.conf files/etc/opkg/distfeeds.conf
-          mkdir -p files/www/test
-          cp -r bin/targets files/www/test
+          mkdir -p files/www/openwrt
+          cp -r bin/targets files/www/openwrt
           mkdir -p files/etc/uci-defaults/
           cp ../scripts/init-settings.sh files/etc/uci-defaults/99-init-settings
           make package/install || make package/install -j1 V=s
@@ -266,8 +266,8 @@ jobs:
           make diffconfig
           make target/clean
           make package/libs/mbedtls/clean
-          make target/compile -j$(nproc) 'IGNORE_ERRORS=n m' BUILD_LOG=1 || make target/compile -j1 V=s IGNORE_ERRORS=1
-          make package/compile -j$(nproc) BUILD_LOG=1 IGNORE_ERRORS="y m n" || make package/compile -j1 V=s IGNORE_ERRORS="y m n"
+          make target/compile -j1 'IGNORE_ERRORS=n m' BUILD_LOG=1 || make target/compile -j1 V=s IGNORE_ERRORS=1
+          make package/compile -j1 BUILD_LOG=1 IGNORE_ERRORS="y m n" || make package/compile -j1 V=s IGNORE_ERRORS="y m n"
           make package/index
           mkdir -p $OPENWRTROOT/output/bin/packages
           cp -r bin/packages/$PLATFORM $OPENWRTROOT/output/bin/packages
