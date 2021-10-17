@@ -116,7 +116,7 @@ jobs:
     runs-on: project-x86_64
 
     outputs:
-      COMPILETOOLS_STATUS: ${{ steps.compiletools.outputs.COMPILETOOLS_STATUS }}          
+      COMPILETOOLS_STATUS: ${{ steps.compile tools.outputs.COMPILETOOLS_STATUS }}          
 
       - name: Compile Tools
         id: tools
@@ -136,7 +136,7 @@ jobs:
     runs-on: project-x86_64
 
     outputs:
-      COMPILETOOLCHAIN_STATUS: ${{ steps.compiletoolchain.outputs.COMPILETOOLCHAIN_STATUS }}  
+      COMPILETOOLCHAIN_STATUS: ${{ steps.compile toolchain.outputs.COMPILETOOLCHAIN_STATUS }}  
 
       - name: Compile Toolchain
         id: toolchain
