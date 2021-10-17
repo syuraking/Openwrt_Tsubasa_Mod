@@ -19,6 +19,7 @@ on:
 env:
   REPO_URL: https://github.com/coolsnowwolf/lede
   REPO_BRANCH: master
+  WORKDIR: /home/ubuntu/actions-runner/_work/Openwrt_Tsubasa_Mod/Openwrt_Tsubasa_Mod
   CONFIG_FILE: config/x86/x86_64-openwrt-target.config
   DIY_SH: scripts/project-openwrt.sh
   #WEBROOT: ~/openwrt
@@ -122,7 +123,7 @@ jobs:
       - name: Compile-Tools
         id: tools
         run: |
-          cd $OPENWRTROOT
+          cd $WORKDIR
           rm -f $OPENWRTROOT/.config
           cp $CONFIG_FILE $OPENWRTROOT/.config
           cat config/firmware-extra.config >> $OPENWRTROOT/.config
