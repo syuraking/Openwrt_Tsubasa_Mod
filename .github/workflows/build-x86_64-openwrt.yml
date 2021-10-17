@@ -133,7 +133,7 @@ jobs:
           echo "::set-output name=COMPILETOOLS_STATUS::success"
 
   Compile-Toolchain:
-    needs: [Compile Tools]
+    needs: [Compile-Tools]
     runs-on: project-x86_64
 
     outputs:
