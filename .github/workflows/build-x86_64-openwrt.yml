@@ -149,6 +149,7 @@ jobs:
           echo "::set-output name=COMPILETOOLCHAIN_STATUS::success"
 
   Umount-Disk-Image:
+    needs: [Compile-Toolchain]
     runs-on: project-x86_64
 
     outputs:
