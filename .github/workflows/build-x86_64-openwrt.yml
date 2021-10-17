@@ -167,7 +167,7 @@ jobs:
         id: compile
         env:
           DEBIAN_FRONTEND: noninteractive
-        timeout-minutes: 400
+        timeout-minutes: 9999
         run: |
           cd $OPENWRTROOT
           echo -e "$(nproc) threads compile"
@@ -256,7 +256,7 @@ jobs:
         id: compile
         env:
           DEBIAN_FRONTEND: noninteractive
-        timeout-minutes: 400
+        timeout-minutes: 9999
         run: |
           cd $OPENWRTROOT
           rm -f .config*
