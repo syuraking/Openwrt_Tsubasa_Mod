@@ -109,6 +109,14 @@ jobs:
           make download -j1 IGNORE_ERRORS=1
           find dl -size -1024c -exec ls -l {} \;
           find dl -size -1024c -exec rm -f {} \;
+          echo "::set-output name=TOOLCHAIN_STATUS::success"
+
+  Compile Tools:
+    needs: [Toolchain]
+    runs-on: project-x86_64
+
+    outputs:
+      COMPILETOOLS_STATUS: ${{ steps.compiletools.outputs.COMPILETOOLS_STATUS }}          
 
       - name: Compile Tools
         id: tools
@@ -121,6 +129,14 @@ jobs:
           make defconfig
           echo -e "$(nproc) threads compile"
           make tools/install -j1 BUILD_LOG=1 || make tools/install -j1 V=s
+          echo "::set-output name=COMPILETOOLS_STATUS::success"
+
+  Compile Toolchain:
+    needs: [Compile Tools]
+    runs-on: project-x86_64
+
+    outputs:
+      COMPILETOOLCHAIN_STATUS: ${{ steps.compiletoolchain.outputs.COMPILETOOLCHAIN_STATUS }}  
 
       - name: Compile Toolchain
         id: toolchain
@@ -128,7 +144,13 @@ jobs:
           cd $OPENWRTROOT
           echo -e "$(nproc) threads compile"
           make toolchain/compile -j1 BUILD_LOG=1 || make toolchain/compile -j1 V=s
-          echo "::set-output name=TOOLCHAIN_STATUS::success"
+          echo "::set-output name=COMPILETOOLCHAIN_STATUS::success"
+
+  Umount Disk Image:
+    runs-on: project-x86_64
+
+    outputs:
+      TOOLCHAIN_STATUS: ${{ steps.toolchain.outputs.TOOLCHAIN_STATUS }}  
 
       - name: Umount Disk Image
         id: prepare
@@ -141,7 +163,7 @@ jobs:
 
   Firmware:
     if: needs.Toolchain.outputs.TOOLCHAIN_STATUS == 'success'
-    needs: [Toolchain]
+    needs: [Compile Toolchain]
     runs-on: project-x86_64
 
     outputs:
