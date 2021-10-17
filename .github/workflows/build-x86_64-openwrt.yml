@@ -122,6 +122,7 @@ jobs:
       - name: Compile-Tools
         id: tools
         run: |
+          cd $OPENWRTROOT
           rm -f $OPENWRTROOT/.config
           cp $CONFIG_FILE $OPENWRTROOT/.config
           cat config/firmware-extra.config >> $OPENWRTROOT/.config
