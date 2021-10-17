@@ -145,7 +145,7 @@ jobs:
         run: |
           cd $OPENWRTROOT
           echo -e "$(nproc) threads compile"
-          make toolchain/compile -j1 BUILD_LOG=1 || make toolchain/compile -j1 V=s
+          make toolchain/compile -j2 BUILD_LOG=1 || make toolchain/compile -j1 V=s
           echo "::set-output name=COMPILETOOLCHAIN_STATUS::success"
 
   Umount-Disk-Image:
@@ -199,9 +199,9 @@ jobs:
           cd $OPENWRTROOT
           echo -e "$(nproc) threads compile"
           echo 'CONFIG_MMC_SDHCI_ACPI=y' >> target/linux/x86/64/config-5.4
-          make target/compile -j1 'IGNORE_ERRORS=n m' BUILD_LOG=1 || make target/compile -j1 V=s IGNORE_ERRORS=1
+          make target/compile -j2 'IGNORE_ERRORS=n m' BUILD_LOG=1 || make target/compile -j1 V=s IGNORE_ERRORS=1
           make diffconfig
-          make package/compile -j1 'IGNORE_ERRORS=n m' BUILD_LOG=1 || make package/compile -j1 V=s
+          make package/compile -j2 'IGNORE_ERRORS=n m' BUILD_LOG=1 || make package/compile -j1 V=s
           make package/index
           cd $OPENWRTROOT/bin/packages/*
           PLATFORM=$(basename `pwd`)
