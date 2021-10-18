@@ -21,6 +21,7 @@ env:
   REPO_BRANCH: master
   WORKDIR: /home/ubuntu/actions-runner/_work/Openwrt_Tsubasa_Mod/Openwrt_Tsubasa_Mod
   CONFIG_FILE: config/x86/x86_64-openwrt-target.config
+  OPENWRTROOT: $WORKDIR/openwrt
   DIY_SH: scripts/project-openwrt.sh
   #WEBROOT: ~/openwrt
   RUNNER: project-x86_64
@@ -124,12 +125,12 @@ jobs:
       - name: Compile-Tools
         id: tools
         run: |
-          cd openwrt
-          echo "OPENWRTROOT=$PWD" >> $GITHUB_ENV
+          cd $WORKDIR
+          echo $OPENWRTROOT
           rm -f $OPENWRTROOT/.config
-          cp ../config/x86/x86_64-openwrt-target.config $OPENWRTROOT/.config
-          cat ../config/firmware-extra.config >> $OPENWRTROOT/.config
-          cat ../config/base-wireless-support.config >> $OPENWRTROOT/.config
+          cp config/x86/x86_64-openwrt-target.config $OPENWRTROOT/.config
+          cat config/firmware-extra.config >> $OPENWRTROOT/.config
+          cat config/base-wireless-support.config >> $OPENWRTROOT/.config
           make defconfig
           echo -e "$(nproc) threads compile"
           make tools/install -j1 BUILD_LOG=1 || make tools/install -j1 V=s
