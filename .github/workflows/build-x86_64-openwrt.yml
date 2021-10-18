@@ -109,7 +109,7 @@ jobs:
           cp -r ~/cache/lean/dl .
           echo "CONFIG_ALL=y" >> .config
           make defconfig
-          make download -j1 IGNORE_ERRORS=1
+          make download -j2 IGNORE_ERRORS=1
           find dl -size -1024c -exec ls -l {} \;
           find dl -size -1024c -exec rm -f {} \;
           echo "::set-output name=TOOLCHAIN_STATUS::success"
@@ -125,15 +125,14 @@ jobs:
       - name: Compile-Tools
         id: tools
         run: |
-          cd $WORKDIR
-          echo $OPENWRTROOT
-          rm -f $OPENWRTROOT/.config
-          cp config/x86/x86_64-openwrt-target.config $OPENWRTROOT/.config
-          cat config/firmware-extra.config >> $OPENWRTROOT/.config
-          cat config/base-wireless-support.config >> $OPENWRTROOT/.config
+          rm -f openwrt/.config
+          cp config/x86/x86_64-openwrt-target.config openwrt/.config
+          cat config/firmware-extra.config >> openwrt/.config
+          cat config/base-wireless-support.config >> openwrt/.config
+          cd openwrt
           make defconfig
           echo -e "$(nproc) threads compile"
-          make tools/install -j1 BUILD_LOG=1 || make tools/install -j1 V=s
+          make tools/install -j2 BUILD_LOG=1 || make tools/install -j2 V=s
           echo "::set-output name=COMPILETOOLS_STATUS::success"
 
   Compile-Toolchain:
@@ -148,8 +147,6 @@ jobs:
         id: toolchain
         run: |
           cd openwrt
-          echo "OPENWRTROOT=$PWD" >> $GITHUB_ENV
-          cd $OPENWRTROOT
           echo -e "$(nproc) threads compile"
           make toolchain/compile -j2 BUILD_LOG=1 || make toolchain/compile -j1 V=s
           echo "::set-output name=COMPILETOOLCHAIN_STATUS::success"
