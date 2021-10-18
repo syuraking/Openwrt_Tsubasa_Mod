@@ -124,7 +124,8 @@ jobs:
       - name: Compile-Tools
         id: tools
         run: |
-          cd $OPENWRTROOT
+          cd openwrt
+          echo "OPENWRTROOT=$PWD" >> $GITHUB_ENV
           rm -f $OPENWRTROOT/.config
           cp ../config/x86/x86_64-openwrt-target.config $OPENWRTROOT/.config
           cat ../config/firmware-extra.config >> $OPENWRTROOT/.config
@@ -145,6 +146,8 @@ jobs:
       - name: Compile-Toolchain
         id: toolchain
         run: |
+          cd openwrt
+          echo "OPENWRTROOT=$PWD" >> $GITHUB_ENV
           cd $OPENWRTROOT
           echo -e "$(nproc) threads compile"
           make toolchain/compile -j2 BUILD_LOG=1 || make toolchain/compile -j1 V=s
