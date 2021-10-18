@@ -48,6 +48,7 @@ jobs:
         env:
           DEBIAN_FRONTEND: noninteractive
         run: |
+          echo $GITHUB_WORKSPACE
           sudo -E apt-get -qq update
           sudo -E apt-get -qq install $(curl -fsSL git.io/depends-ubuntu-1804) rdate
           sudo -E apt-get -qq autoremove --purge
@@ -123,12 +124,11 @@ jobs:
       - name: Compile-Tools
         id: tools
         run: |
-          cd $WORKDIR
-          rm -f $OPENWRTROOT/.config
-          cp $CONFIG_FILE $OPENWRTROOT/.config
-          cat config/firmware-extra.config >> $OPENWRTROOT/.config
-          cat config/base-wireless-support.config >> $OPENWRTROOT/.config
           cd $OPENWRTROOT
+          rm -f $OPENWRTROOT/.config
+          cp ../config/x86/x86_64-openwrt-target.config $OPENWRTROOT/.config
+          cat ../config/firmware-extra.config >> $OPENWRTROOT/.config
+          cat ../config/base-wireless-support.config >> $OPENWRTROOT/.config
           make defconfig
           echo -e "$(nproc) threads compile"
           make tools/install -j1 BUILD_LOG=1 || make tools/install -j1 V=s
@@ -169,7 +169,7 @@ jobs:
 
   Firmware:
     if: needs.Toolchain.outputs.TOOLCHAIN_STATUS == 'success'
-    needs: [Compile-Toolchain]
+    needs: [Umount-Disk-Image]
     runs-on: project-x86_64
 
     outputs:
@@ -196,7 +196,6 @@ jobs:
         id: compile
         env:
           DEBIAN_FRONTEND: noninteractive
-        timeout-minutes: 9999
         run: |
           cd $OPENWRTROOT
           echo -e "$(nproc) threads compile"
