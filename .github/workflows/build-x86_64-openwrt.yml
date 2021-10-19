@@ -30,9 +30,6 @@ jobs:
   Toolchain:
     runs-on: project-x86_64
 
-    outputs:
-      TOOLCHAIN_STATUS: ${{ steps.toolchain.outputs.TOOLCHAIN_STATUS }}
-
     steps:
       - name: Umount Missing Loop Devices
         id: umount
