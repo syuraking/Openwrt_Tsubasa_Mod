@@ -153,7 +153,7 @@ jobs:
     runs-on: project-x86_64
 
     outputs:
-      TOOLCHAIN_STATUS: ${{ steps.toolchain.outputs.TOOLCHAIN_STATUS }}  
+      TOOLCHAIN_STATUS: ${{ steps.UmountDiskImage.outputs.UMOUNT_STATUS }}  
 
     steps:
       - name: Umount-Disk-Image
@@ -164,9 +164,10 @@ jobs:
           sudo umount ${LOOP}p1 || true
           sudo losetup -d $LOOP || true
           lsblk
+          echo "::set-output name=UMOUNT_STATUS::success"
 
   Firmware:
-    if: needs.Toolchain.outputs.TOOLCHAIN_STATUS == 'success'
+    if: needs.UmountDiskImage.outputs.UMOUNT_STATUS == 'success'
     needs: [Umount-Disk-Image]
     runs-on: project-x86_64
 
