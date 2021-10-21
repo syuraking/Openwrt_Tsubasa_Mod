@@ -140,35 +140,32 @@ jobs:
       COMPILETOOLCHAIN_STATUS: ${{ steps.compiletoolchain.outputs.COMPILETOOLCHAIN_STATUS }}  
 
     steps:
-      - name: Compile-Toolchain
+      - name: Compile Toolchain
         id: toolchain
         run: |
+          export LOOP="$(sudo losetup -f -P --show openwrt.img)"
+          echo "LOOP=$LOOP" >> $GITHUB_ENV
+          echo "::set-output name=LOOP::$(echo $LOOP)"
           cd openwrt
           echo -e "$(nproc) threads compile"
           make toolchain/compile -j2 BUILD_LOG=1 || make toolchain/compile -j1 V=s
           echo "::set-output name=COMPILETOOLCHAIN_STATUS::success"
 
-  Umount-Disk-Image:
-    needs: [Compile-Toolchain]
-    runs-on: project-x86_64
-
-    outputs:
-      TOOLCHAIN_STATUS: ${{ steps.UmountDiskImage.outputs.UMOUNT_STATUS }}  
-
-    steps:
-      - name: Umount-Disk-Image
+      - name: Umount Disk Image
         id: prepare
         if: always()
         run: |
+          export LOOP="$(sudo losetup -f -P --show openwrt.img)"
+          echo "LOOP=$LOOP" >> $GITHUB_ENV
+          echo "::set-output name=LOOP::$(echo $LOOP)"
           sync
           sudo umount ${LOOP}p1 || true
           sudo losetup -d $LOOP || true
           lsblk
-          echo "::set-output name=UMOUNT_STATUS::success"
 
   Firmware:
-    if: needs.UmountDiskImage.outputs.UMOUNT_STATUS == 'success'
-    needs: [Umount-Disk-Image]
+    #if: needs.Compile-Toolchain.outputs.COMPILETOOLCHAIN_STATUS == 'success'
+    needs: [Compile-Toolchain]
     runs-on: project-x86_64
 
     outputs:
